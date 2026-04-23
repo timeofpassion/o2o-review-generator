@@ -1,18 +1,18 @@
 @import "tailwindcss";
 
 @theme {
-  --color-cream: #f0f7ff;
-  --color-cream-deep: #e1eeff;
+  --color-cream: #fff9f8;
+  --color-cream-deep: #ffe8e6;
   --color-ink: #0f172a;
   --color-ink-soft: #475569;
   --color-ink-muted: #94a3b8;
-  --color-accent: #0ea5e9;
-  --color-accent-soft: #e0f2fe;
+  --color-accent: #E63329;
+  --color-accent-soft: #ffe4e2;
   --color-line: rgba(15, 23, 42, 0.08);
 
   --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.06);
   --shadow-glass-lg: 0 16px 48px rgba(0, 0, 0, 0.08);
-  --shadow-accent: 0 8px 24px rgba(14, 165, 233, 0.25);
+  --shadow-accent: 0 8px 24px rgba(230, 51, 41, 0.25);
 
   --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
     system-ui, Roboto, "Helvetica Neue", "Segoe UI", sans-serif;
@@ -29,8 +29,8 @@ body {
   font-feature-settings: "ss01", "ss02", "cv01";
   min-height: 100dvh;
   background-image:
-    radial-gradient(circle at 10% 15%, rgba(14, 165, 233, 0.10), transparent 45%),
-    radial-gradient(circle at 90% 85%, rgba(3, 199, 90, 0.07), transparent 50%);
+    radial-gradient(circle at 10% 15%, rgba(230, 51, 41, 0.07), transparent 45%),
+    radial-gradient(circle at 90% 85%, rgba(230, 51, 41, 0.04), transparent 50%);
   background-attachment: fixed;
 }
 

@@ -61,14 +61,15 @@ export function ReviewForm() {
   return (
     <div className="flex flex-col gap-6">
       {/* Header */}
-      <div className="flex items-center gap-3 px-2">
-        <div className="w-10 h-10 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center text-sm font-semibold">
-          O2O
+      <div className="flex items-center justify-between px-2">
+        <div className="flex items-center gap-3">
+          <img src="/logo_passion.png" alt="열정의시간" className="h-8 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+          <div className="leading-tight">
+            <div className="text-[var(--color-ink)] font-semibold">O2O 리뷰 원고 생성기</div>
+            <div className="text-[var(--color-ink-soft)] text-xs">네이버플레이스 · 구글맵 · 카카오맵</div>
+          </div>
         </div>
-        <div className="leading-tight">
-          <div className="text-[var(--color-ink)] font-semibold">O2O 리뷰 원고 생성기</div>
-          <div className="text-[var(--color-ink-soft)] text-xs">네이버플레이스 · 구글맵 · 카카오맵</div>
-        </div>
+        <span className="text-[var(--color-ink-muted)] text-xs tracking-widest uppercase">열정의시간</span>
       </div>
 
       <GlassCard padding="lg">
