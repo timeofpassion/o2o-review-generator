@@ -15,7 +15,7 @@ export async function callOpenRouter(
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
       "HTTP-Referer": "https://o2o-review.vercel.app",
-      "X-Title": "O2O 리뷰 원고 생성기",
+      "X-Title": "O2O Review Generator",
     },
     body: JSON.stringify({
       model,
