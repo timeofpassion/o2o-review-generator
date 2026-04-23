@@ -69,6 +69,7 @@ export async function generateReviews(
   const procedure = formData.get("procedure") as string | null;
   const notes = formData.get("notes") as string | null;
   const feedbacksRaw = formData.get("feedbacks") as string | null;
+  const personaRaw   = formData.get("persona")   as string | null;
 
   if (!platforms.length) {
     return { ok: false, error: "플랫폼을 하나 이상 선택해 주세요." };
@@ -78,11 +79,29 @@ export async function generateReviews(
   }
 
   let feedbacks: StoredFeedback[] = [];
-  try {
-    feedbacks = JSON.parse(feedbacksRaw ?? "[]");
-  } catch {
-    feedbacks = [];
-  }
+  try { feedbacks = JSON.parse(feedbacksRaw ?? "[]"); } catch { feedbacks = []; }
+
+  let persona: Record<string, string> = {};
+  try { persona = JSON.parse(personaRaw ?? "{}"); } catch { persona = {}; }
+
+  const PERSONA_LABELS: Record<string, string> = {
+    ageGroup:     "연령대",
+    gender:       "성별",
+    occupation:   "직업",
+    visitCount:   "방문 횟수",
+    visitTrigger: "방문 계기",
+    companion:    "동행 여부",
+    deliberation: "고민 기간",
+  };
+
+  const personaBlock = Object.keys(persona).length > 0
+    ? `\n[리뷰어 페르소나 — 이 특성의 실제 환자처럼 작성]\n${
+        Object.entries(persona)
+          .filter(([, v]) => v)
+          .map(([k, v]) => `- ${PERSONA_LABELS[k] ?? k}: ${v}`)
+          .join("\n")
+      }`
+    : "";
 
   const hospital = getHospital(hospitalName);
 
@@ -124,7 +143,7 @@ ${hospitalBlock}
 선택 플랫폼 및 기준:
 ${platformLines}
 
-강조포인트: ${emphasis || "전반적 만족"}${procedure ? `\n시술명: ${procedure}` : ""}${notes ? `\n추가 지시사항: ${notes}` : ""}${feedbackBlock}
+강조포인트: ${emphasis || "전반적 만족"}${procedure ? `\n시술명: ${procedure}` : ""}${notes ? `\n추가 지시사항: ${notes}` : ""}${personaBlock}${feedbackBlock}
 
 각 플랫폼당 ${count}개씩. JSON으로 출력:`;
 
