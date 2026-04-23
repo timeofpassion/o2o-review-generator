@@ -1,83 +1,170 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, useEffect } from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { AccentButton } from "@/components/ui/AccentButton";
-import { generateReviews } from "@/app/actions/generate";
+import { generateReviews, type PlatformReviews } from "@/app/actions/generate";
 import { HOSPITALS, type Platform } from "@/lib/hospitals";
 
+// ── 상수 ──────────────────────────────────────────────
 const PLATFORMS: {
   id: Platform;
   label: string;
   short: string;
   active: string;
   inactive: string;
-  dot: string;
+  dotBg: string;
 }[] = [
   {
     id: "네이버플레이스",
     label: "네이버플레이스",
     short: "N",
     active: "border-[#03C75A] bg-[#dcfce7] text-[#03C75A]",
-    inactive: "border-[var(--color-line)] bg-white/50 text-[var(--color-ink-soft)] hover:bg-white/80",
-    dot: "bg-[#03C75A]",
+    inactive:
+      "border-[var(--color-line)] bg-white/50 text-[var(--color-ink-soft)] hover:bg-white/80",
+    dotBg: "bg-[#03C75A]",
   },
   {
     id: "구글맵",
     label: "구글맵",
     short: "G",
     active: "border-[#4285F4] bg-[#dbeafe] text-[#4285F4]",
-    inactive: "border-[var(--color-line)] bg-white/50 text-[var(--color-ink-soft)] hover:bg-white/80",
-    dot: "bg-[#4285F4]",
+    inactive:
+      "border-[var(--color-line)] bg-white/50 text-[var(--color-ink-soft)] hover:bg-white/80",
+    dotBg: "bg-[#4285F4]",
   },
   {
     id: "카카오맵",
     label: "카카오맵",
     short: "K",
     active: "border-[#FFCE00] bg-[#fef9c3] text-[#B8960C]",
-    inactive: "border-[var(--color-line)] bg-white/50 text-[var(--color-ink-soft)] hover:bg-white/80",
-    dot: "bg-[#FFCE00]",
+    inactive:
+      "border-[var(--color-line)] bg-white/50 text-[var(--color-ink-soft)] hover:bg-white/80",
+    dotBg: "bg-[#FFCE00]",
   },
 ];
 
 const EMPHASIS_OPTIONS = ["결과", "상담", "시설", "가성비", "회복", "접근성"];
 const COUNT_OPTIONS = [3, 5, 10];
+const FEEDBACK_KEY = "o2o_review_feedbacks";
 
+// ── 피드백 스토리지 ──────────────────────────────────
+interface StoredFeedback {
+  date: string;
+  hospital: string;
+  platforms: string[];
+  text: string;
+}
+
+function loadFeedbacks(): StoredFeedback[] {
+  if (typeof window === "undefined") return [];
+  try {
+    return JSON.parse(localStorage.getItem(FEEDBACK_KEY) ?? "[]");
+  } catch {
+    return [];
+  }
+}
+
+function appendFeedback(fb: StoredFeedback) {
+  const list = loadFeedbacks();
+  list.push(fb);
+  localStorage.setItem(FEEDBACK_KEY, JSON.stringify(list.slice(-20)));
+}
+
+// ── 메인 컴포넌트 ─────────────────────────────────────
 export function ReviewForm() {
-  const [platform, setPlatform] = useState<Platform | null>(null);
+  const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>([]);
   const [emphasis, setEmphasis] = useState<string[]>([]);
   const [count, setCount] = useState(5);
+  const [currentHospital, setCurrentHospital] = useState("");
+  const [feedbacks, setFeedbacks] = useState<StoredFeedback[]>([]);
+  const [feedbackText, setFeedbackText] = useState("");
+  const [feedbackSaved, setFeedbackSaved] = useState(false);
+
+  useEffect(() => {
+    setFeedbacks(loadFeedbacks());
+  }, []);
 
   const [result, dispatch, isPending] = useActionState(
     async (_prev: unknown, formData: FormData) => generateReviews(formData),
     undefined
   );
 
+  const togglePlatform = (p: Platform) =>
+    setSelectedPlatforms((prev) =>
+      prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]
+    );
+
   const toggleEmphasis = (e: string) =>
     setEmphasis((prev) =>
       prev.includes(e) ? prev.filter((x) => x !== e) : [...prev, e]
     );
+
+  const handleFeedbackSave = () => {
+    const text = feedbackText.trim();
+    if (!text) return;
+    const fb: StoredFeedback = {
+      date: new Date().toLocaleDateString("ko-KR"),
+      hospital: currentHospital,
+      platforms: selectedPlatforms,
+      text,
+    };
+    appendFeedback(fb);
+    setFeedbacks(loadFeedbacks());
+    setFeedbackText("");
+    setFeedbackSaved(true);
+    setTimeout(() => setFeedbackSaved(false), 2500);
+  };
+
+  const recentFeedbacks = feedbacks.slice(-5);
+  const canGenerate = selectedPlatforms.length > 0 && currentHospital !== "";
 
   return (
     <div className="flex flex-col gap-6">
       {/* Header */}
       <div className="flex items-center justify-between px-2">
         <div className="flex items-center gap-3">
-          <img src="/logo_passion.png" alt="열정의시간" className="h-8 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+          <img
+            src="/logo_passion.png"
+            alt="열정의시간"
+            className="h-8 object-contain"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = "none";
+            }}
+          />
           <div className="leading-tight">
-            <div className="text-[var(--color-ink)] font-semibold">O2O 리뷰 원고 생성기</div>
-            <div className="text-[var(--color-ink-soft)] text-xs">네이버플레이스 · 구글맵 · 카카오맵</div>
+            <div className="text-[var(--color-ink)] font-semibold">
+              O2O 리뷰 원고 생성기
+            </div>
+            <div className="text-[var(--color-ink-soft)] text-xs">
+              네이버플레이스 · 구글맵 · 카카오맵
+            </div>
           </div>
         </div>
-        <span className="text-[var(--color-ink-muted)] text-xs tracking-widest uppercase">열정의시간</span>
+        <span className="text-[var(--color-ink-muted)] text-xs tracking-widest uppercase">
+          열정의시간
+        </span>
       </div>
 
       <GlassCard padding="lg">
         <form action={dispatch} className="flex flex-col gap-7">
           {/* Hidden fields */}
-          <input type="hidden" name="platform" value={platform ?? ""} />
-          <input type="hidden" name="emphasis" value={emphasis.join(",")} />
+          <input
+            type="hidden"
+            name="platforms"
+            value={selectedPlatforms.join(",")}
+          />
+          <input
+            type="hidden"
+            name="emphasis"
+            value={emphasis.join(",")}
+          />
           <input type="hidden" name="count" value={count} />
+          <input
+            type="hidden"
+            name="feedbacks"
+            value={JSON.stringify(recentFeedbacks)}
+          />
 
           {/* Intro */}
           <div>
@@ -91,33 +178,50 @@ export function ReviewForm() {
             </h1>
           </div>
 
-          {/* Platform */}
+          {/* Platform — 다중 선택 */}
           <div className="flex flex-col gap-2">
-            <span className="text-[var(--color-ink-soft)] text-xs font-medium uppercase tracking-wider">
-              플랫폼 선택 *
-            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-[var(--color-ink-soft)] text-xs font-medium uppercase tracking-wider">
+                플랫폼 선택 * (복수 가능)
+              </span>
+              {selectedPlatforms.length > 0 && (
+                <span className="text-[var(--color-accent)] text-xs font-medium">
+                  {selectedPlatforms.length}개 선택됨
+                </span>
+              )}
+            </div>
             <div className="grid grid-cols-3 gap-3">
-              {PLATFORMS.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => setPlatform(p.id)}
-                  className={[
-                    "flex flex-col items-center gap-2 py-4 rounded-2xl border-2 transition font-medium text-sm",
-                    platform === p.id ? p.active : p.inactive,
-                  ].join(" ")}
-                >
-                  <span
+              {PLATFORMS.map((p) => {
+                const isActive = selectedPlatforms.includes(p.id);
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => togglePlatform(p.id)}
                     className={[
-                      "w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold",
-                      platform === p.id ? p.dot + " text-white" : "bg-[var(--color-line)]",
+                      "relative flex flex-col items-center gap-2 py-4 rounded-2xl border-2 transition font-medium text-sm",
+                      isActive ? p.active : p.inactive,
                     ].join(" ")}
                   >
-                    {p.short}
-                  </span>
-                  <span className="text-xs leading-tight text-center">{p.label}</span>
-                </button>
-              ))}
+                    {isActive && (
+                      <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-current opacity-80 flex items-center justify-center text-white text-[10px]">
+                        ✓
+                      </span>
+                    )}
+                    <span
+                      className={[
+                        "w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white",
+                        p.dotBg,
+                      ].join(" ")}
+                    >
+                      {p.short}
+                    </span>
+                    <span className="text-xs leading-tight text-center">
+                      {p.label}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -129,6 +233,7 @@ export function ReviewForm() {
             <select
               name="hospital"
               defaultValue=""
+              onChange={(e) => setCurrentHospital(e.target.value)}
               className="w-full h-12 px-4 rounded-xl bg-white/70 border border-[var(--color-line)] text-[var(--color-ink)] outline-none transition focus:border-[var(--color-accent)]/60 focus:ring-4 focus:ring-[var(--color-accent)]/15 cursor-pointer"
             >
               <option value="" disabled>
@@ -169,7 +274,7 @@ export function ReviewForm() {
           {/* Count */}
           <div className="flex flex-col gap-2">
             <span className="text-[var(--color-ink-soft)] text-xs font-medium uppercase tracking-wider">
-              생성 개수
+              플랫폼당 생성 개수
             </span>
             <div className="flex gap-3">
               {COUNT_OPTIONS.map((c) => (
@@ -188,6 +293,11 @@ export function ReviewForm() {
                 </button>
               ))}
             </div>
+            {selectedPlatforms.length > 1 && (
+              <p className="text-[var(--color-ink-muted)] text-xs">
+                총 {count * selectedPlatforms.length}개 생성 ({selectedPlatforms.length}개 플랫폼 × {count}개)
+              </p>
+            )}
           </div>
 
           {/* Optional */}
@@ -209,93 +319,154 @@ export function ReviewForm() {
             />
           </div>
 
+          {/* 누적 피드백 미리보기 */}
+          {recentFeedbacks.length > 0 && (
+            <div className="rounded-2xl bg-[var(--color-accent-soft)] border border-[var(--color-accent)]/20 p-4 flex flex-col gap-2">
+              <span className="text-[var(--color-accent)] text-xs font-semibold uppercase tracking-wider">
+                반영 중인 피드백 {feedbacks.length}건
+              </span>
+              <ul className="flex flex-col gap-1">
+                {recentFeedbacks.map((fb, i) => (
+                  <li key={i} className="text-[var(--color-ink-soft)] text-xs flex gap-2">
+                    <span className="text-[var(--color-ink-muted)] shrink-0">{fb.date}</span>
+                    <span>{fb.text}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <AccentButton
             type="submit"
-            disabled={isPending || !platform}
+            disabled={isPending || !canGenerate}
             className="w-full"
           >
-            {isPending ? "생성 중…" : `리뷰 원고 ${count}개 생성하기 →`}
+            {isPending
+              ? "생성 중…"
+              : `리뷰 원고 생성하기 →${selectedPlatforms.length > 1 ? ` (${selectedPlatforms.length}개 플랫폼)` : ""}`}
           </AccentButton>
         </form>
       </GlassCard>
 
       {/* Loading */}
-      {isPending && <LoadingState count={count} />}
+      {isPending && <LoadingState platforms={selectedPlatforms} count={count} />}
 
       {/* Results */}
       {result && !isPending && (
         result.ok ? (
-          <ReviewResults
-            reviews={result.reviews}
-            platform={result.platform}
-            hospital={result.hospital}
-          />
+          <>
+            <ReviewResults results={result.results} hospital={result.hospital} />
+
+            {/* 게시 주의 */}
+            <div className="px-4 py-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-sm text-center">
+              ⚠️ 하루 1~2개씩 날짜 분산 게시. 한꺼번에 올리면 어뷰징 감지 위험.
+            </div>
+
+            {/* 피드백 수집 */}
+            <FeedbackCard
+              hospital={result.hospital}
+              platforms={result.results.map((r) => r.platform)}
+              feedbackText={feedbackText}
+              setFeedbackText={setFeedbackText}
+              onSave={handleFeedbackSave}
+              saved={feedbackSaved}
+            />
+          </>
         ) : (
           <ErrorCard message={result.error} />
         )
-      )}
-
-      {/* Posting notice */}
-      {result?.ok && !isPending && (
-        <div className="px-2 py-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-sm text-center">
-          ⚠️ 하루 1~2개씩 날짜를 분산해서 게시하세요. 한꺼번에 올리면 어뷰징 감지될 수 있습니다.
-        </div>
       )}
     </div>
   );
 }
 
-function LoadingState({ count }: { count: number }) {
+// ── 하위 컴포넌트 ─────────────────────────────────────
+
+function LoadingState({ platforms, count }: { platforms: Platform[]; count: number }) {
   return (
-    <GlassCard className="flex flex-col gap-4 animate-pulse">
-      <div className="h-4 w-1/3 rounded-full bg-[var(--color-ink)]/8" />
-      {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="flex flex-col gap-2">
-          <div className="h-3 w-full rounded-full bg-[var(--color-ink)]/6" />
-          <div className="h-3 w-4/5 rounded-full bg-[var(--color-ink)]/6" />
-          <div className="h-3 w-3/5 rounded-full bg-[var(--color-ink)]/5" />
+    <GlassCard className="flex flex-col gap-5 animate-pulse">
+      {platforms.map((p) => (
+        <div key={p} className="flex flex-col gap-2">
+          <div className="h-4 w-1/4 rounded-full bg-[var(--color-ink)]/10" />
+          {Array.from({ length: Math.min(count, 3) }).map((_, i) => (
+            <div key={i} className="flex flex-col gap-1.5">
+              <div className="h-3 w-full rounded-full bg-[var(--color-ink)]/6" />
+              <div className="h-3 w-4/5 rounded-full bg-[var(--color-ink)]/5" />
+            </div>
+          ))}
         </div>
       ))}
-      <p className="text-[var(--color-ink-muted)] text-xs mt-1">
-        AI가 병원 설정을 적용해 원고를 작성하는 중입니다…
+      <p className="text-[var(--color-ink-muted)] text-xs">
+        병원 설정 적용 중… 잠시 기다려 주세요.
       </p>
     </GlassCard>
   );
 }
 
 function ReviewResults({
-  reviews,
-  platform,
+  results,
   hospital,
 }: {
-  reviews: { text: string }[];
-  platform: Platform;
+  results: PlatformReviews[];
   hospital: string;
 }) {
-  const charRange =
-    platform === "네이버플레이스"
-      ? [100, 400]
-      : platform === "구글맵"
-      ? [80, 200]
-      : [50, 150];
-
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between px-2">
+    <div className="flex flex-col gap-6">
+      <div className="px-2 flex items-center justify-between">
         <span className="text-[var(--color-ink-soft)] text-xs font-medium uppercase tracking-wider">
-          생성 완료 — {hospital} · {platform}
+          생성 완료 — {hospital}
         </span>
         <span className="text-[var(--color-ink-muted)] text-xs">
-          {reviews.length}개
+          총 {results.reduce((s, r) => s + r.reviews.length, 0)}개
         </span>
       </div>
+
+      {results.map(({ platform, reviews }) => (
+        <PlatformSection key={platform} platform={platform} reviews={reviews} />
+      ))}
+    </div>
+  );
+}
+
+const PLATFORM_CHAR_RANGE: Record<Platform, [number, number]> = {
+  네이버플레이스: [100, 400],
+  구글맵: [80, 200],
+  카카오맵: [50, 150],
+};
+
+const PLATFORM_LABEL_STYLE: Record<Platform, string> = {
+  네이버플레이스: "bg-[#03C75A] text-white",
+  구글맵: "bg-[#4285F4] text-white",
+  카카오맵: "bg-[#FFCE00] text-[#5C4A00]",
+};
+
+function PlatformSection({
+  platform,
+  reviews,
+}: {
+  platform: Platform;
+  reviews: { text: string }[];
+}) {
+  const charRange = PLATFORM_CHAR_RANGE[platform];
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2 px-1">
+        <span
+          className={[
+            "px-3 py-1 rounded-full text-xs font-semibold",
+            PLATFORM_LABEL_STYLE[platform],
+          ].join(" ")}
+        >
+          {platform}
+        </span>
+        <span className="text-[var(--color-ink-muted)] text-xs">
+          {charRange[0]}~{charRange[1]}자 기준
+        </span>
+      </div>
+
       {reviews.map((r, i) => (
-        <ReviewCard
-          key={i}
-          index={i + 1}
-          text={r.text}
-          charRange={charRange}
-        />
+        <ReviewCard key={i} index={i + 1} text={r.text} charRange={charRange} />
       ))}
     </div>
   );
@@ -308,7 +479,7 @@ function ReviewCard({
 }: {
   index: number;
   text: string;
-  charRange: number[];
+  charRange: [number, number];
 }) {
   const len = text.length;
   const [min, max] = charRange;
@@ -321,8 +492,12 @@ function ReviewCard({
     ? "bg-amber-100 text-amber-700"
     : "bg-red-100 text-red-700";
 
+  const [copied, setCopied] = useState(false);
+
   const handleCopy = () => {
     navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
   };
 
   return (
@@ -332,20 +507,85 @@ function ReviewCard({
           <span className="w-6 h-6 rounded-full bg-[var(--color-accent)]/15 text-[var(--color-accent)] text-xs font-semibold flex items-center justify-center">
             {index}
           </span>
-          <span className={["px-2 py-0.5 rounded-full text-xs font-medium", charBadge].join(" ")}>
+          <span
+            className={[
+              "px-2 py-0.5 rounded-full text-xs font-medium",
+              charBadge,
+            ].join(" ")}
+          >
             {len}자 {inRange ? "✓" : tooShort ? "▼짧음" : "▲김"}
           </span>
         </div>
         <button
           type="button"
           onClick={handleCopy}
-          className="px-3 py-1.5 rounded-full text-xs font-medium bg-white/70 border border-[var(--color-line)] text-[var(--color-ink-soft)] hover:text-[var(--color-accent)] hover:border-[var(--color-accent)]/30 transition"
+          className={[
+            "px-3 py-1.5 rounded-full text-xs font-medium border transition",
+            copied
+              ? "bg-[var(--color-accent)] text-white border-[var(--color-accent)]"
+              : "bg-white/70 border-[var(--color-line)] text-[var(--color-ink-soft)] hover:text-[var(--color-accent)] hover:border-[var(--color-accent)]/30",
+          ].join(" ")}
         >
-          복사
+          {copied ? "복사됨 ✓" : "복사"}
         </button>
       </div>
       <p className="text-[var(--color-ink)] text-sm leading-relaxed whitespace-pre-wrap">
         {text}
+      </p>
+    </GlassCard>
+  );
+}
+
+function FeedbackCard({
+  hospital,
+  platforms,
+  feedbackText,
+  setFeedbackText,
+  onSave,
+  saved,
+}: {
+  hospital: string;
+  platforms: Platform[];
+  feedbackText: string;
+  setFeedbackText: (v: string) => void;
+  onSave: () => void;
+  saved: boolean;
+}) {
+  return (
+    <GlassCard padding="md" className="flex flex-col gap-4 border-[var(--color-accent)]/20">
+      <div className="flex flex-col gap-1">
+        <span className="text-[var(--color-accent)] text-xs font-semibold uppercase tracking-wider">
+          피드백 입력 필수
+        </span>
+        <p className="text-[var(--color-ink)] text-sm font-medium">
+          이번 결과 개선사항이 있나요?
+        </p>
+        <p className="text-[var(--color-ink-soft)] text-xs">
+          입력한 피드백은 다음 생성에 자동 반영됩니다. 없으면 <strong>없음</strong> 입력.
+        </p>
+      </div>
+
+      <textarea
+        value={feedbackText}
+        onChange={(e) => setFeedbackText(e.target.value)}
+        placeholder="예: 리뷰 문체가 너무 비슷함, 아쉬운 점이 너무 많이 포함됨, 없음"
+        rows={3}
+        className="w-full px-4 py-3 rounded-xl bg-white/70 border border-[var(--color-line)] text-[var(--color-ink)] placeholder:text-[var(--color-ink-muted)] outline-none transition focus:border-[var(--color-accent)]/60 focus:ring-4 focus:ring-[var(--color-accent)]/15 resize-none text-sm"
+      />
+
+      <div className="flex items-center gap-3">
+        <AccentButton
+          type="button"
+          onClick={onSave}
+          disabled={!feedbackText.trim() || saved}
+          className="flex-1 h-11 text-sm"
+        >
+          {saved ? "저장됨 ✓ 다음 생성에 반영" : "피드백 저장 → 다음 생성에 자동 반영"}
+        </AccentButton>
+      </div>
+
+      <p className="text-[var(--color-ink-muted)] text-xs text-center">
+        {hospital} · {platforms.join(", ")}
       </p>
     </GlassCard>
   );
