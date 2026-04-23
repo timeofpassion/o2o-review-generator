@@ -60,7 +60,7 @@ const PERSONA_OPTIONS = {
 } as const;
 
 type PersonaKey = keyof typeof PERSONA_OPTIONS;
-type PersonaState = Partial<Record<PersonaKey, string>>;
+type PersonaState = Partial<Record<PersonaKey, string[]>>;
 
 // ── 피드백 스토리지 ──────────────────────────────────
 interface StoredFeedback {
@@ -88,8 +88,7 @@ export function ReviewForm() {
   const [emphasis, setEmphasis]     = useState<string[]>([]);
   const [count, setCount]           = useState(5);
   const [currentHospital, setCurrentHospital] = useState("");
-  const [persona, setPersona]       = useState<PersonaState>({});
-  const [personaOpen, setPersonaOpen] = useState(false);
+  const [persona, setPersona] = useState<PersonaState>({});
   const [feedbacks, setFeedbacks]   = useState<StoredFeedback[]>([]);
   const [feedbackText, setFeedbackText] = useState("");
   const [feedbackSaved, setFeedbackSaved] = useState(false);
@@ -111,11 +110,16 @@ export function ReviewForm() {
       prev.includes(e) ? prev.filter(x => x !== e) : [...prev, e]
     );
 
-  const setPersonaField = (key: PersonaKey, value: string) =>
-    setPersona(prev => ({
-      ...prev,
-      [key]: prev[key] === value ? undefined : value,
-    }));
+  const togglePersonaField = (key: PersonaKey, value: string) =>
+    setPersona(prev => {
+      const current = prev[key] ?? [];
+      return {
+        ...prev,
+        [key]: current.includes(value)
+          ? current.filter(x => x !== value)
+          : [...current, value],
+      };
+    });
 
   const handleFeedbackSave = () => {
     const text = feedbackText.trim();
@@ -133,7 +137,7 @@ export function ReviewForm() {
   };
 
   const recentFeedbacks    = feedbacks.slice(-5);
-  const personaFilledCount = Object.values(persona).filter(Boolean).length;
+  const personaFilledCount = Object.values(persona).filter(v => v && v.length > 0).length;
   const canGenerate        = selectedPlatforms.length > 0 && currentHospital !== "";
 
   return (
@@ -277,62 +281,55 @@ export function ReviewForm() {
             )}
           </div>
 
-          {/* 페르소나 설정 — 토글 */}
-          <div className="flex flex-col gap-3">
-            <button
-              type="button"
-              onClick={() => setPersonaOpen(v => !v)}
-              className="flex items-center justify-between w-full py-3 px-4 rounded-xl bg-white/50 border border-[var(--color-line)] hover:bg-white/80 transition"
-            >
+          {/* 페르소나 설정 — 항상 펼침, 다중선택 */}
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
               <span className="text-[var(--color-ink-soft)] text-xs font-medium uppercase tracking-wider">
-                리뷰어 페르소나 설정
-                {personaFilledCount > 0 && (
-                  <span className="ml-2 px-2 py-0.5 rounded-full bg-[var(--color-accent)] text-white text-[10px] font-semibold">
-                    {personaFilledCount}개 선택됨
-                  </span>
-                )}
+                리뷰어 페르소나 (복수 선택)
               </span>
-              <span className="text-[var(--color-ink-muted)] text-xs">
-                {personaOpen ? "▲ 접기" : "▼ 펼치기"}
-              </span>
-            </button>
-
-            {personaOpen && (
-              <div className="flex flex-col gap-4 px-1">
-                {(Object.entries(PERSONA_OPTIONS) as [PersonaKey, typeof PERSONA_OPTIONS[PersonaKey]][]).map(([key, config]) => (
-                  <div key={key} className="flex flex-col gap-2">
-                    <span className="text-[var(--color-ink-soft)] text-xs font-medium">{config.label}</span>
-                    <div className="flex flex-wrap gap-2">
-                      {config.items.map(item => (
-                        <button
-                          key={item}
-                          type="button"
-                          onClick={() => setPersonaField(key, item)}
-                          className={[
-                            "px-3 py-1.5 rounded-full text-xs font-medium border transition",
-                            persona[key] === item
-                              ? "bg-[var(--color-ink)] text-white border-[var(--color-ink)]"
-                              : "bg-white/60 text-[var(--color-ink-soft)] border-[var(--color-line)] hover:border-[var(--color-ink)]/30",
-                          ].join(" ")}
-                        >
-                          {item}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-
+              <div className="flex items-center gap-2">
                 {personaFilledCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setPersona({})}
-                    className="self-start text-xs text-[var(--color-ink-muted)] underline underline-offset-2 hover:text-[var(--color-ink-soft)] transition"
-                  >
-                    초기화
-                  </button>
+                  <>
+                    <span className="px-2 py-0.5 rounded-full bg-[var(--color-accent)] text-white text-[10px] font-semibold">
+                      {personaFilledCount}개 항목 선택됨
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setPersona({})}
+                      className="text-xs text-[var(--color-ink-muted)] underline underline-offset-2 hover:text-[var(--color-ink-soft)] transition"
+                    >
+                      초기화
+                    </button>
+                  </>
                 )}
               </div>
-            )}
+            </div>
+
+            {(Object.entries(PERSONA_OPTIONS) as [PersonaKey, typeof PERSONA_OPTIONS[PersonaKey]][]).map(([key, config]) => (
+              <div key={key} className="flex flex-col gap-2">
+                <span className="text-[var(--color-ink-soft)] text-xs font-medium">{config.label}</span>
+                <div className="flex flex-wrap gap-2">
+                  {config.items.map(item => {
+                    const isSelected = (persona[key] ?? []).includes(item);
+                    return (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => togglePersonaField(key, item)}
+                        className={[
+                          "px-3 py-1.5 rounded-full text-xs font-medium border transition",
+                          isSelected
+                            ? "bg-[var(--color-ink)] text-white border-[var(--color-ink)]"
+                            : "bg-white/60 text-[var(--color-ink-soft)] border-[var(--color-line)] hover:border-[var(--color-ink)]/30",
+                        ].join(" ")}
+                      >
+                        {item}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* Optional */}
